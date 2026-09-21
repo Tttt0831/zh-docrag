@@ -1,0 +1,4 @@
+# 锁死 torch 系，防止 pip 解析依赖时静默换成 cu13x —— 本机驱动 CUDA 上限 12.4，
+# cu13 的 wheel 装得上但跑不了。任何 pip install 都要带 PIP_CONSTRAINT=此文件。
+torch==2.7.1+cu126
+torchvision==0.22.1+cu126

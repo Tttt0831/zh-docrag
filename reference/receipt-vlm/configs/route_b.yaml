@@ -1,0 +1,30 @@
+# Route B: Qwen2-VL-2B-Instruct + LoRA（现成原生 VLM 直接微调）
+# 训练脚本：src/train_qwen2vl_lora.py（用 --config 读取本文件）
+# 与路线 A/C 不同：不自建视觉融合，直接在原生 Qwen2-VL 上加 LoRA。
+
+stage:
+  name: "route_b"
+  description: "Qwen2-VL-2B-Instruct LoRA 微调"
+
+model:
+  hf_model_name: "Qwen/Qwen2-VL-2B-Instruct"
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+
+data:
+  language: "chinese"
+  train_path: "data/synthetic/train/train.jsonl"
+  val_path: "data/synthetic/val/val.jsonl"
+
+training:
+  epochs: 5
+  batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 2e-4
+  warmup_steps: 50
+  mixed_precision: "bf16"
+
+checkpointing:
+  save_best_by: "val_loss"
+  output_dir: "checkpoints/route_b"

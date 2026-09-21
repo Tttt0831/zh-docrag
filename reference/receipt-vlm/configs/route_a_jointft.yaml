@@ -1,0 +1,52 @@
+# Route A 变体：视觉(顶部层)+投影 联合微调
+# 目标：缓解基线路线A "缺乏视觉接地、输出幻觉" 的问题。
+# 相比 route_a.yaml：解冻 SigLIP2 顶部 2 层 + post_layernorm，与 projection + LoRA 联合训练；
+# 视觉用更小 lr（vision_lr_scale）以免破坏预训练特征。
+
+stage:
+  name: "route_a_jointft"
+  description: "SigLIP2 顶部解冻 + projection + Qwen2-1.5B LoRA 联合微调"
+
+model:
+  vision_model_name: "google/siglip2-base-patch16-naflex"
+  tokenizer_name: "Qwen/Qwen2-1.5B"
+  llm_type: "hf_lora"
+  hf_model_name: "Qwen/Qwen2-1.5B"
+  hf_lora_r: 16
+  hf_lora_alpha: 32
+  hf_lora_dropout: 0.05
+  llm_hidden_size: 1536
+  projection_intermediate_dim: 3072
+
+data:
+  language: "chinese"
+  train_path: "data/synthetic/train/train.jsonl"
+  val_path: "data/synthetic/val/val.jsonl"
+
+training:
+  epochs: 5
+  batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 5e-5
+  vision_lr_scale: 0.1        # 视觉解冻层 lr = 5e-5 * 0.1 = 5e-6
+  warmup_steps: 100
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  optimizer: "adamw"
+  scheduler: "cosine"
+  mixed_precision: "bf16"
+
+freezing:
+  freeze_vision: true             # 先全冻，再按下面解冻顶部若干层
+  vision_trainable_layers: 2      # 解冻 SigLIP2 顶部 2 层 + post_layernorm
+  train_projection: true
+  freeze_strategy: "projection_only"   # LLM 侧只训 LoRA + projection
+
+checkpointing:
+  save_every_n_epochs: 2
+  save_best_by: "val_loss"
+  output_dir: "checkpoints/route_a_jointft"
+
+sequence:
+  max_sequence_length: 2048
+  max_num_patches: 1024

@@ -1,0 +1,51 @@
+# Route A 变体：视觉(顶部4层)+投影 联合微调
+# 相比 2 层版本：解冻更多视觉层以增强密集小数字接地
+# 目的：改善 total_amount / date 等字段的抽取
+
+stage:
+  name: "route_a_jointft_4l"
+  description: "SigLIP2 顶部4层解冻 + projection + Qwen2-1.5B LoRA 联合微调"
+
+model:
+  vision_model_name: "google/siglip2-base-patch16-naflex"
+  tokenizer_name: "Qwen/Qwen2-1.5B"
+  llm_type: "hf_lora"
+  hf_model_name: "Qwen/Qwen2-1.5B"
+  hf_lora_r: 16
+  hf_lora_alpha: 32
+  hf_lora_dropout: 0.05
+  llm_hidden_size: 1536
+  projection_intermediate_dim: 3072
+
+data:
+  language: "chinese"
+  train_path: "data/synthetic/train/train.jsonl"
+  val_path: "data/synthetic/val/val.jsonl"
+
+training:
+  epochs: 5
+  batch_size: 2
+  gradient_accumulation_steps: 8
+  learning_rate: 5e-5
+  vision_lr_scale: 0.1        # 视觉解冻层 lr = 5e-6
+  warmup_steps: 100
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  optimizer: "adamw"
+  scheduler: "cosine"
+  mixed_precision: "bf16"
+
+freezing:
+  freeze_vision: true
+  vision_trainable_layers: 4      # 解冻 SigLIP2 顶部 4 层 + post_layernorm
+  train_projection: true
+  freeze_strategy: "projection_only"
+
+checkpointing:
+  save_every_n_epochs: 2
+  save_best_by: "val_loss"
+  output_dir: "checkpoints/route_a_jointft_4l"
+
+sequence:
+  max_sequence_length: 2048
+  max_num_patches: 1024

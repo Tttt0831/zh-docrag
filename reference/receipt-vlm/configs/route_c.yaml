@@ -1,0 +1,53 @@
+# Route C: SigLIP2 + Projection + 自制 MiniLLM(214M, h1024/L16)
+# 前提：已用 src/pretrain_lm.py 做过语言预训练，权重在
+#       checkpoints/route_c/llm_pretrained.pt（用 train.py --init-llm 载入）
+# tokenizer：本项目自训练的 32k BPE（tokenizers/receipt-bpe-32k/）
+#   旧的 12k 版常用 3500 字只有 63.7% 是单 token、票据高频字覆盖 77.6%，
+#   且把 18 位税号切成 '15'/'200' 这类不规则块。32k+数字逐位后分别是
+#   76.5% / 95.9%，税号逐位 18 token。旧词表保留在 tokenizers/receipt-bpe 供对照。
+
+stage:
+  name: "route_c"
+  description: "自制 MiniLLM(214M) - 语言预训练后接 VLM 对齐/精调"
+
+model:
+  vision_model_name: "google/siglip2-base-patch16-naflex"
+  tokenizer_name: "tokenizers/receipt-bpe-32k"   # 12k 覆盖不足，换 32k+数字逐位
+  llm_type: "mini"
+  llm_hidden_size: 1024
+  llm_num_layers: 16
+  llm_num_heads: 16
+  llm_intermediate_size: 2752   # SwiGLU 约 8/3·hidden（对齐 MiniMind），≈214M
+  projection_intermediate_dim: 4096
+
+data:
+  language: "chinese"
+  train_path: "data/synthetic/train/train.jsonl"
+  val_path: "data/synthetic/val/val.jsonl"
+
+training:
+  epochs: 8
+  batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 1e-4
+  warmup_steps: 100
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  optimizer: "adamw"
+  scheduler: "cosine"
+  mixed_precision: "bf16"
+
+# Stage1 先 projection_only 对齐，Stage2 再 projection_llm_ends 精调
+freezing:
+  freeze_vision: true
+  train_projection: true
+  freeze_strategy: "projection_llm_ends"
+
+checkpointing:
+  save_every_n_epochs: 2
+  save_best_by: "val_loss"
+  output_dir: "checkpoints/route_c"
+
+sequence:
+  max_sequence_length: 2048
+  max_num_patches: 1024

@@ -1,0 +1,8 @@
+# 第三方克隆，用 scripts/clone_ragflow.sh 重新拉，不入库
+ragflow/
+# 运行日志与 pid
+logs/
+*.log
+*.pid
+__pycache__/
+*.pyc
