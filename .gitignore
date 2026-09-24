@@ -1,8 +1,25 @@
-# 第三方克隆，用 scripts/clone_ragflow.sh 重新拉，不入库
+# 第三方克隆，用 scripts/clone_ragflow.sh 重新拉
 ragflow/
+
 # 运行日志与 pid
 logs/
 *.log
 *.pid
 __pycache__/
 *.pyc
+
+# 原始 PDF 与页面图：可用 scripts/fetch_corpus.py + scripts/build_pages.py 从巨潮重新生成
+data/corpus/pdf/
+data/corpus/pages/
+data/corpus/_one.pdf
+data/pdf/
+data/pages/
+data/parsed/
+
+# 派生数据：解析结果、参照文本、向量索引。体积大且可重新生成
+data/corpus/parsed.jsonl
+data/corpus/ref_text.jsonl
+data/index/
+
+# 模型权重（软链到 HF 缓存）
+models/
