@@ -24,6 +24,13 @@ from pathlib import Path
 
 import torch
 
+
+def _hf_hub() -> Path:
+    """HF 缓存根。集群上 /home 配额仅 50G，缓存指到 /projects，靠 HF_HOME 传入。"""
+    import os
+    return Path(os.environ.get("HF_HOME") or (Path.home() / ".cache/huggingface")) / "hub"
+
+
 REPO = Path(__file__).resolve().parent.parent
 IDX = REPO / "data/index"
 IDX.mkdir(parents=True, exist_ok=True)
@@ -31,7 +38,7 @@ IDX.mkdir(parents=True, exist_ok=True)
 
 def local_snapshot(repo_id: str) -> str:
     pat = f"models--{repo_id.replace('/', '--')}/snapshots/*/"
-    snaps = sorted((Path.home() / ".cache/huggingface/hub").glob(pat))
+    snaps = sorted((_hf_hub()).glob(pat))
     if not snaps:
         raise SystemExit(f"未找到 {repo_id} 本地快照")
     return str(snaps[0])

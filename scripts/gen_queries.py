@@ -22,6 +22,13 @@ import time
 from difflib import SequenceMatcher
 from pathlib import Path
 
+
+def _hf_hub() -> Path:
+    """HF 缓存根。集群上 /home 配额仅 50G，缓存指到 /projects，靠 HF_HOME 传入。"""
+    import os
+    return Path(os.environ.get("HF_HOME") or (Path.home() / ".cache/huggingface")) / "hub"
+
+
 REPO = Path(__file__).resolve().parent.parent
 
 PROMPT_TMPL = """你在为中文文档检索系统构建评测集。下面是《{name}》2024 年年度报告中的一页。
@@ -119,7 +126,7 @@ def main():
     from PIL import Image
 
     name = "Qwen/Qwen2.5-VL-7B-Instruct"
-    snaps = sorted((Path.home() / ".cache/huggingface/hub").glob("models--Qwen--Qwen2.5-VL-7B-Instruct/snapshots/*"))
+    snaps = sorted((_hf_hub()).glob("models--Qwen--Qwen2.5-VL-7B-Instruct/snapshots/*"))
     path = str(snaps[0]) if snaps else name
     t0 = time.time()
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(path, dtype=torch.bfloat16, device_map="cuda:0").eval()

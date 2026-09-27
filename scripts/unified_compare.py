@@ -39,6 +39,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from metrics import mrr, ndcg_at_k, recall_at_k  # noqa: E402
 
 
+def _hf_hub() -> Path:
+    """HF 缓存根。集群上 /home 配额仅 50G，缓存指到 /projects，靠 HF_HOME 传入。"""
+    import os
+    return Path(os.environ.get("HF_HOME") or (Path.home() / ".cache/huggingface")) / "hub"
+
+
+
 def local_snapshot(repo_id: str) -> str:
     """用本地快照路径而不是 repo id。
 
@@ -46,7 +53,7 @@ def local_snapshot(repo_id: str) -> str:
     模板文件时会返回 None，随后 open(None) 崩在 processing_utils.py 里，
     报错信息完全看不出真正原因。给本地路径可绕过那套解析。
     """
-    pat = str(Path.home() / f".cache/huggingface/hub/models--{repo_id.replace('/', '--')}/snapshots/*/")
+    pat = str(_hf_hub() / f"models--{repo_id.replace('/', '--')}/snapshots/*/")
     snaps = sorted(glob.glob(pat))
     if not snaps:
         raise SystemExit(f"未找到 {repo_id} 的本地快照，先 hf download")

@@ -40,9 +40,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from metrics import mrr, ndcg_at_k, recall_at_k  # noqa: E402
 
 
+def _hf_hub() -> Path:
+    """HF 缓存根。集群上 /home 配额仅 50G，缓存指到 /projects，靠 HF_HOME 传入。"""
+    import os
+    return Path(os.environ.get("HF_HOME") or (Path.home() / ".cache/huggingface")) / "hub"
+
+
+
 def local_snapshot(repo_id):
     pat = f"models--{repo_id.replace('/', '--')}/snapshots/*/"
-    return str(sorted((Path.home() / ".cache/huggingface/hub").glob(pat))[0])
+    return str(sorted((_hf_hub()).glob(pat))[0])
 
 
 def page_scores_from_chunks(sim_row, metas):
@@ -93,11 +100,15 @@ def main():
     ap.add_argument("--batch", type=int, default=8)
     args = ap.parse_args()
 
+    # 必须读 filter_queries.py 的产物，不是 gen_queries.py 的原始输出：
+    # 原始文件含退化样本（query≈answer，天然利好 BM25），且 gold_pages 只标了出题那一页——
+    # 而过滤阶段会把答案串在多页出现的情况全部补进真值。读错文件不会报错，只会把分数算歪。
     qs = []
     for src in args.queries:
-        f = REPO / f"data/corpus/queries_{src}.jsonl"
-        if f.exists():
-            qs += [json.loads(l) for l in open(f)]
+        f = REPO / f"data/corpus/queries_{src}_clean.jsonl"
+        if not f.exists():
+            raise SystemExit(f"缺 {f.name}，先跑 scripts/filter_queries.py")
+        qs += [json.loads(l) for l in open(f)]
     if not qs:
         raise SystemExit("没有查询文件")
     print(f"  查询 {len(qs)} 条（" + "，".join(f"{s}源 {sum(1 for q in qs if q['source']==s)}" for s in args.queries) + "）", flush=True)

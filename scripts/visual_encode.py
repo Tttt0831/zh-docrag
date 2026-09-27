@@ -8,6 +8,13 @@ from pathlib import Path
 import torch
 from PIL import Image
 
+
+def _hf_hub() -> Path:
+    """HF 缓存根。集群上 /home 配额仅 50G，缓存指到 /projects，靠 HF_HOME 传入。"""
+    import os
+    return Path(os.environ.get("HF_HOME") or (Path.home() / ".cache/huggingface")) / "hub"
+
+
 REPO = Path(__file__).resolve().parent.parent
 
 
@@ -28,7 +35,7 @@ def main():
     # 文件本身在本地快照里是齐的（chat_template.jinja + additional_chat_templates/
     # sentence_transformers.jinja），给本地路径即可绕过那套解析。
     import glob as _g
-    snaps = sorted(_g.glob(str(Path.home() / ".cache/huggingface/hub/models--vidore--colqwen2.5-v0.2/snapshots/*/")))
+    snaps = sorted(_g.glob(str(_hf_hub() / "models--vidore--colqwen2.5-v0.2/snapshots/*/")))
     if not snaps:
         raise SystemExit("未找到 colqwen2.5-v0.2 本地快照，先 hf download")
     name = snaps[0]
