@@ -25,10 +25,12 @@ uv pip install -q -p $V/bin/python --index-strategy unsafe-best-match \
 
 echo "=== [3/3] 自检"
 $V/bin/python - <<'PY'
-import torch, transformers, sentence_transformers, peft, colpali_engine
+import importlib.metadata as md
+import torch, transformers, sentence_transformers, peft
 print("  torch", torch.__version__, "| arch", torch.cuda.get_arch_list() if torch.cuda.is_available() else "(登录节点无 GPU)")
 print("  transformers", transformers.__version__, "| sentence-transformers", sentence_transformers.__version__)
-print("  peft", peft.__version__, "| colpali_engine", colpali_engine.__version__)
+# colpali_engine 不导出 __version__，只能查发行版元数据
+print("  peft", peft.__version__, "| colpali_engine", md.version("colpali-engine"))
 from colpali_engine.models import ColQwen2_5, ColQwen2_5_Processor
 from transformers import Qwen2_5_VLForConditionalGeneration
 print("  imports OK")

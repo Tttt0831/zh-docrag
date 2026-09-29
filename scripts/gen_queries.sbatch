@@ -7,7 +7,8 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --time=04:00:00
-# 双源出题：看页面图出题 / 看 DeepDoc 解析文本出题，各 200 条。
+# 双源出题：看页面图出题 / 看 DeepDoc 解析文本出题。target 数的是过滤前条数，
+# smoke 实测过滤留用约 65%，故各生成 320 条，过滤后约 200 条。
 # 两源必须同一模型同一提示词，差值才能归因到出题偏差（DESIGN 第三节）。
 # 一个作业跑完两源再过滤，省去排队两次；7B bf16 约 16G 显存，A6000 48G 富余。
 set -u
@@ -16,7 +17,7 @@ cd "$ZHDOC" || exit 1
 
 for src in image text; do
   echo "=== [$(date +%H:%M:%S)] 出题源=$src"
-  $PY scripts/gen_queries.py --source "$src" --target 200 --max-pages 500
+  $PY scripts/gen_queries.py --source "$src" --target 320 --max-pages 600
   echo "=== 源 $src 退出码=$?"
 done
 
