@@ -38,6 +38,9 @@ REPO = Path(__file__).resolve().parent.parent
 IDX = REPO / "data/index"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from metrics import mrr, ndcg_at_k, recall_at_k  # noqa: E402
+# B_bm25.pkl 由 build_indexes.py 作为 __main__ 运行时写出，pickle 记下的类路径是
+# __main__.BM25。这里把它导进本模块（此时的 __main__），反序列化才找得到类。
+from build_indexes import BM25  # noqa: E402,F401
 
 
 def _hf_hub() -> Path:
@@ -167,14 +170,20 @@ def main():
     # ---------- 评测 ----------
     per_q = {k: [] for k in systems}
     strat = {k: defaultdict(list) for k in systems}
+    # 逐查询完整记录：DESIGN 要求按页面类型（纯文字/普通表格/复杂表格/图表）分层，
+    # 终止条件第一条就是「复杂表格上显著赢」。分层标注需要回看 DeepDoc 版面输出，
+    # 放在 GPU 作业之外离线做；只存 nDCG 列表的话 qid 和真值都丢了，只能重跑。
+    records = [{"qid": q["qid"], "source": q["source"], "gold_pages": q["gold_pages"],
+                "page": q["gold_pages"][0], "sys": {}} for q in qs]
     for k, maps in systems.items():
         for i, q in enumerate(qs):
             ranked = ranked_from(maps[i])
             gold = q["gold_pages"]
             nd = ndcg_at_k(ranked, gold, 5)
+            r1, r5, rr = recall_at_k(ranked, gold, 1), recall_at_k(ranked, gold, 5), mrr(ranked, gold)
             per_q[k].append(nd)
-            strat[k][q["source"]].append((nd, recall_at_k(ranked, gold, 1),
-                                          recall_at_k(ranked, gold, 5), mrr(ranked, gold)))
+            strat[k][q["source"]].append((nd, r1, r5, rr))
+            records[i]["sys"][k] = {"ndcg5": nd, "r1": r1, "r5": r5, "mrr": rr, "top5": ranked[:5]}
 
     order = ["A", "A'", "B", "C", "D", "E"]
     names = {"A": "解析式·稠密", "A'": "解析式·按行切块", "B": "解析式·BM25",
@@ -214,9 +223,9 @@ def main():
         print(f"  {x} − {y}  {why}")
         print(f"    Δ nDCG@5 = {obs:+.4f}   95%CI [{lo:+.4f}, {hi:+.4f}]   p={p:.4f}   → {sig}")
 
-    json.dump({"per_query": per_q, "n": len(qs)},
+    json.dump({"per_query": per_q, "n": len(qs), "records": records},
               open(REPO / "data/eval_results.json", "w"), ensure_ascii=False)
-    print("\n  结果已存 data/eval_results.json", flush=True)
+    print("\n  结果已存 data/eval_results.json（含逐查询记录，供离线按页面类型分层）", flush=True)
 
 
 if __name__ == "__main__":
