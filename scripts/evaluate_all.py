@@ -174,7 +174,7 @@ def main():
     # 终止条件第一条就是「复杂表格上显著赢」。分层标注需要回看 DeepDoc 版面输出，
     # 放在 GPU 作业之外离线做；只存 nDCG 列表的话 qid 和真值都丢了，只能重跑。
     records = [{"qid": q["qid"], "source": q["source"], "gold_pages": q["gold_pages"],
-                "page": q["gold_pages"][0], "sys": {}} for q in qs]
+                "page": f"{q['code']}_p{q['page']}", "sys": {}} for q in qs]   # 出题页，分层按它标
     for k, maps in systems.items():
         for i, q in enumerate(qs):
             ranked = ranked_from(maps[i])

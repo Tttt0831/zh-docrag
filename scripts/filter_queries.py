@@ -24,9 +24,10 @@
 * 答案以「详见/参见」开头（指引不是值）→ 丢弃
 * query 剥掉公司名前缀后与 answer 相似度 > 0.8，或答案原样出现在 query 里 → 丢弃
 * 答案里的数字千分位格式不合法（「255,3」）→ 丢弃，是窄列表格折行留下的残片
-* 答案串在多少页出现，就把这些页全记为真值（用 pdfplumber 参照文本判定，
-  独立于两条路线）
-* 若命中页数 > MAX_GOLD，说明该查询完全不具区分性 → 丢弃
+* 答案串在**本公司**多少页出现，就把这些页全记为真值，出题页排第一
+  （用 pdfplumber 参照文本判定，独立于两条路线；只看本公司是因为查询带公司名，
+  2026-09-29 抽检发现旧版在全库找，17% 的真值混进了别家公司的页）
+* 若本公司内命中页数 > MAX_GOLD，说明该查询在公司内也没有区分度 → 丢弃
 """
 import argparse
 import json
@@ -129,9 +130,15 @@ def main():
             if MALFORMED_NUM.search(re.sub(r"\s", "", a)):
                 drop_frag += 1
                 continue
-            gold = [pid for pid, t in ref.items() if na in t]
-            if not gold:
-                gold = q["gold_pages"]           # 参照缺失（乱码页）时退回原始标注
+            # 多页真值只在**本公司**的页里找，且出题页必在其中、排第一。
+            # 旧版在全部 2400 页里找，440 条中 76 条的真值混进了别家公司的页
+            # （「3,000万元」在别家年报里也出现），14 条的出题页反而不在真值里
+            # （出题页上答案只是模糊接地，逐字匹配落到了别家）。查询里带着公司名，
+            # 别家的页不可能是正确答案。下游一律以 gold_pages[0] 为出题页。
+            src_page = f"{q['code']}_p{q['page']}"
+            prefix = q["code"] + "_p"
+            gold = [src_page] + [pid for pid, t in ref.items()
+                                 if pid != src_page and pid.startswith(prefix) and na in t]
             if len(gold) > MAX_GOLD:
                 drop_broad += 1
                 continue
